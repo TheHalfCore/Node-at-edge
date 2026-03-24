@@ -26,3 +26,6 @@ It learns deep ensembles of oblivious differentiable decision trees on tabular d
  * The notebook downloads data from dropbox. You will need __1-5Gb__ of disk space depending on dataset.
 
 We showcase two typical learning scenarios for classification and regression. Please consult the original paper for training details.
+
+# Node-at-edge
+This repository is to explore the implementation of NODE at the edge
