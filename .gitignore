@@ -78,3 +78,5 @@ debian/files
 *.debhelper.log
 
 .vscode
+/notebooks/data/HAR
+/notebooks/data/YEAR
