@@ -482,14 +482,21 @@ def fetch_UNIMIB(path):
     test_df  = pd.read_csv(test_path)
 
     # Assume last column is label (adjust if needed)
-    X_train = train_df.iloc[:, :-1].values.astype('float32')
-    y_train = train_df.iloc[:, -1].values.astype('int64')
+    X_train = train_df.drop(columns=["label"]).values.astype("float32")
+    y_train = train_df["label"].values.astype("int64")
 
-    X_valid = val_df.iloc[:, :-1].values.astype('float32')
-    y_valid = val_df.iloc[:, -1].values.astype('int64')
+    # X_train = train_df.iloc[:, :-1].values.astype('float32')
+    # y_train = train_df.iloc[:, -1].values.astype('int64')
 
-    X_test = test_df.iloc[:, :-1].values.astype('float32')
-    y_test = test_df.iloc[:, -1].values.astype('int64')
+    # X_valid = val_df.iloc[:, :-1].values.astype('float32')
+    # y_valid = val_df.iloc[:, -1].values.astype('int64')
+    X_valid = val_df.drop(columns=["label"]).values.astype("float32")
+    y_valid = val_df["label"].values.astype("int64")
+
+    # X_test = test_df.iloc[:, :-1].values.astype('float32')
+    # y_test = test_df.iloc[:, -1].values.astype('int64')
+    X_test = test_df.drop(columns=["label"]).values.astype("float32")
+    y_test = test_df["label"].values.astype("int64")
 
     return dict(
         X_train=X_train,
