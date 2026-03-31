@@ -5,8 +5,7 @@ from .odst import ODST
 
 
 class DenseBlock(nn.Sequential):
-    def __init__(self, input_dim, layer_dim, num_layers, tree_dim=1, max_features=None,
-                 input_dropout=0.0, flatten_output=True, Module=ODST, **kwargs):
+    def __init__(self, input_dim, layer_dim, num_layers, tree_dim=1, max_features=None, input_dropout=0.0, flatten_output=True, Module=ODST, **kwargs):
         #input_dim -> number of input features
         #layer_dim -> number of output features per tree in each layer
         #num_layers -> number of layers in the block
