@@ -8,6 +8,7 @@ node_modules
 
 #notebooks/data/*
 notebooks/logs/*
+experiment/logs/*
 notebooks/runs/*
 notebooks/.ipynb_checkpoints/*
 

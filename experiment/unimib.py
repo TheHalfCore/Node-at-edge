@@ -45,6 +45,10 @@ class UniMiBExperiment:
         self.report_frequency = 100
         self.fig = None
         self.axes = None
+        self.layer_dim = 8 #number of output features per tree in each layer
+        self.num_layers = 4 #umber of layers in the block
+        self.tree_dim = 1 #number of output features per tree (default 1, i.e. scalar output)
+        self.depth = 6
         self.best_model_path = "best_model.pt"
 
     def _setup_device(self):
@@ -92,7 +96,8 @@ class UniMiBExperiment:
 
     def create_model(self):
         self.model = nn.Sequential(
-            lib.DenseBlock(self.in_features, 8, num_layers=1, tree_dim=1, depth=2, flatten_output=False),
+            lib.DenseBlock(self.in_features, self.layer_dim, num_layers=self.num_layers
+                           , tree_dim=self.tree_dim, depth=self.depth, flatten_output=False),
             lib.Lambda(lambda x: x.mean(dim=-1).mean(dim=-1)),
             #lib.Lambda(lambda x: x.mean(dim=-1)),
         ).to(self.device)
