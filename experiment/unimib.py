@@ -21,6 +21,8 @@ from sklearn.metrics import f1_score
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.preprocessing import LabelEncoder
 
+from lib.nn_utils import sparsemax, sparsemoid
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DATA_PATH = os.path.join(BASE_DIR, "..", "notebooks", "data")
@@ -55,7 +57,9 @@ class UniMiBExperiment:
         self.num_layers = 8 #umber of layers in the block
         self.tree_dim = 17 #number of output features per tree (default 1, i.e. scalar output)
         self.depth = 6 #depth of each tree (default 6, i.e. 64 leafs per tree)
-        self.best_model_path = "best_model.pt"
+        self.best_model_path = f"best_model_ld-{self.layer_dim}_nl-{self.num_layers}_td-{self.tree_dim}.pt"
+        self.choice_function = sparsemax #lib.entmax15
+        self.bin_function = sparsemoid #lib.entmoid15
 
     def _setup_device(self):
         os.environ["CUDA_VISIBLE_DEVICES"] = str(self.gpu_id)
@@ -118,7 +122,9 @@ class UniMiBExperiment:
         num_layers=self.num_layers,
         tree_dim=self.num_classes,
         depth=self.depth,
-        flatten_output=False
+        flatten_output=False,
+        choice_function=self.choice_function, 
+        bin_function=self.bin_function
         ).to(self.device)
 
         # Proper data-aware init + shape detection
