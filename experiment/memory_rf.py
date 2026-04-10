@@ -45,10 +45,13 @@ def estimate_rf_memory(n_trees, n_leaves, n_classes,
     }
 
 if __name__ == "__main__":
-    n_trees = 8
-    max_depth = 2
+    # n_trees = 8
+    # max_depth = 2
+    n_trees = int(input("Enter number of trees: "))
+    max_depth = int(input("Enter max depth: "))
+    n_classes = int(input("Enter number of classes: "))
     n_leaves = 2**max_depth
-    n_classes = 17
+    # n_classes = 17
     print(f"N_trees: {n_trees}, n_leaves: {n_leaves}, n_classes: {n_classes}")
     size = estimate_rf_memory(n_trees, n_leaves, n_classes)
     print(f"total Size: {size}")
