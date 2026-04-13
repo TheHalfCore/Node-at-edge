@@ -1,6 +1,8 @@
 import os
 import sys
 import time
+import uuid
+import shutil
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -57,7 +59,7 @@ class UniMiBExperiment:
         self.num_layers = 8 #umber of layers in the block
         self.tree_dim = 17 #number of output features per tree (default 1, i.e. scalar output)
         self.depth = 6 #depth of each tree (default 6, i.e. 64 leafs per tree)
-        self.best_model_path = f"best_model_ld-{self.layer_dim}_nl-{self.num_layers}_td-{self.tree_dim}.pt"
+        self.best_model_path = "best_model.pt"#f"best_model_ld-{self.layer_dim}_nl-{self.num_layers}_td-{self.tree_dim}.pt"
         self.choice_function = sparsemax #lib.entmax15
         self.bin_function = sparsemoid #lib.entmoid15
 
@@ -70,9 +72,10 @@ class UniMiBExperiment:
     def _create_experiment_name(self):
         name = "UniMiB_data"
         timestamp = time.gmtime()
-        experiment_name = "{}_{}.{:0>2d}.{:0>2d}_{:0>2d}-{:0>2d}".format(
-            name, *timestamp[:5]
-        )
+        # experiment_name = "{}_{}.{:0>2d}.{:0>2d}_{:0>2d}-{:0>2d}".format(
+        #     name, *timestamp[:5]
+        # )
+        experiment_name = f"{name}_{uuid.uuid4().hex[:8]}"
         print("experiment:", experiment_name)
         return experiment_name
 
@@ -273,6 +276,12 @@ class UniMiBExperiment:
         # print("Test MSE: %0.5f" % (self.mse))
         print("Test F1: %0.5f" % (self.f1))
 
+    def delete_logs(self):
+        LOG_ROOT = os.path.join(os.getcwd(), "logs")
+        if os.path.exists(LOG_ROOT):
+            shutil.rmtree(LOG_ROOT)
+            os.makedirs(LOG_ROOT)
+
     def run(self):
         print("Starting experiment...")
         self.load_and_preprocess_data()
@@ -302,9 +311,10 @@ class UniMiBExperiment:
 
         print("Load checkpoint...")
         self.load_checkpoint()
+        print("Delete logs...")
+        self.delete_logs()
         print("The end")
-
 
 if __name__ == "__main__":
     experiment = UniMiBExperiment(gpu_id=0)
-    experiment.run()        
+    experiment.run()
