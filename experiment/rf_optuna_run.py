@@ -2,6 +2,10 @@ import optuna
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score
+import pickle
+import sys
+import psutil
+import os
 
 # =========================
 # 📂 LOAD DATA (same as yours)
@@ -26,6 +30,14 @@ def aggregate_windows(df):
 
     return agg.reset_index(drop=True)
 
+def get_model_size_mb(model):  # Returns the size of the model in MB
+    size_bytes = len(pickle.dumps(model))
+    return size_bytes / (1024 ** 2)
+
+process = psutil.Process(os.getpid())
+
+def get_memory_mb(): # Returns the current memory usage of the process in MB
+    return process.memory_info().rss / (1024 ** 2)
 
 train_agg = aggregate_windows(train)
 val_agg   = aggregate_windows(val)
@@ -46,6 +58,8 @@ y_test = test_agg["label_first"]
 # =========================
 def objective(trial):
 
+    memory_before = get_memory_mb()
+    
     rf = RandomForestClassifier(
         n_estimators=trial.suggest_int("n_estimators", 1, 2000),
         max_depth=trial.suggest_int("max_depth", 2, 200),
@@ -62,41 +76,79 @@ def objective(trial):
     ## min_samples_leaf  = 1
     rf.fit(X_train, y_train)
 
+    # Memory usage
+    memory_after = get_memory_mb()
+    training_mem = memory_after - memory_before
+    model_mem = get_model_size_mb(rf)
+    
+    #Validation
     y_val_pred = rf.predict(X_val)
-
+    #F1 score
     f1 = f1_score(y_val, y_val_pred, average="macro")
 
-    return f1
+    # Log memory usage as user attributes in Optuna
+    trial.set_user_attr("model_size_mb", model_mem)
+    trial.set_user_attr("training_mem_mb", training_mem)
+
+    print(f"\nTrial {trial.number}")
+    print(f"F1: {f1:.4f}")
+    print(f"Model size: {model_mem:.2f} MB")
+    print(f"Training memory delta: {training_mem:.2f} MB")
+    return f1, model_mem
 
 
 # =========================
 # 🚀 RUN OPTUNA
 # =========================
 if __name__ == "__main__":
-    study = optuna.create_study(direction="maximize")
+    study = optuna.create_study(directions=["maximize", "minimize"]) # We want to maximize F1 and minimize model size
     n_trials = int(input("Enter number of trials [30]: "))
     study.optimize(objective, n_trials=n_trials)
 
-    print("\n🔥 Best params:", study.best_params)
-    print("Best F1:", study.best_value)
-    print("Best Trial Number:", study.best_trial.number)
-    print("Best Trial Params:", study.best_trial.params)
+    best_trial = None
+    best_f1 = -1
 
+    for t in study.trials:
+        f1, mem = t.values
+        if mem < 10 and f1 > best_f1:  # e.g. 10 MB limit
+            best_f1 = f1
+            best_trial = t
 
+    print("\n🎯 Best under constraint:")
+    print(best_trial.params)
+    
+    # =========================
+    # 📊 ANALYZE RESULTS
+    # =========================
+    print("\n🔥 Pareto-optimal trials:")
+    for t in study.best_trials: # These are the Pareto-optimal trials (best trade-offs between F1 and model size)
+        print(f"\nTrial {t.number}")
+        print("  Params:", t.params)
+        print("  F1:", t.values[0])        # maximize
+        print("  Model size:", t.values[1]) # minimize
+
+    print("\n📊 All trials with metrics and user attributes:")
+    for t in study.trials:
+        print(f"Trial {t.number}")
+        print("  Params:", t.params)
+        print("  F1:", t.values[0])
+        print("  Model size (MB):", t.values[1])
+        print("  Training mem (MB):", t.user_attrs.get("training_mem_mb"))
+    
     # # =========================
     # # 🏆 TRAIN FINAL MODEL
     # # =========================
-    # best = study.best_params
+    best = study.best_trials[0].params  # Get the params of the best trial (you can also choose based on a trade-off)
 
-    # rf = RandomForestClassifier(
-    #     **best,
-    #     bootstrap=True,
-    #     random_state=42,
-    #     n_jobs=-1
-    # )
+    rf = RandomForestClassifier(
+        **best,
+        bootstrap=True,
+        random_state=42,
+        n_jobs=-1
+    )
 
-    # rf.fit(X_train, y_train)
+    rf.fit(X_train, y_train)
 
-    # y_test_pred = rf.predict(X_test)
+    y_test_pred = rf.predict(X_test)
 
-    # print("\n✅ FINAL TEST F1 (macro):", f1_score(y_test, y_test_pred, average="macro"))
+    print("\n✅ FINAL TEST F1 (macro):", f1_score(y_test, y_test_pred, average="macro"))
