@@ -11,62 +11,62 @@ from unimib import UniMiBExperiment  # your file
 # ✅ OPTUNA OBJECTIVE
 # =========================
 def objective(trial):
-    # ⚠️ Use CPU to avoid GPU OOM
-    exp = UniMiBExperiment(gpu_id=0)
-    exp.device = "cpu"
+    try:
+        exp = UniMiBExperiment(gpu_id=0)
+        exp.device = "cuda"   # using GPU
 
-    # Load data
-    exp.load_and_preprocess_data()
+        exp.load_and_preprocess_data()
 
-    # =========================
-    # 🔧 Hyperparameters to tune
-    # =========================
-    exp.layer_dim = trial.suggest_int("layer_dim", 48, 1024)
-    exp.num_layers = trial.suggest_int("num_layers", 4, 64)
-    exp.depth = trial.suggest_int("depth", 6, 30)
+        # hyperparameters
+        exp.layer_dim = trial.suggest_int("layer_dim", 1, 64)
+        exp.num_layers = trial.suggest_int("num_layers", 1, 8)
+        exp.depth = trial.suggest_int("depth", 1, 4)
 
-    lr = trial.suggest_float("lr", 1e-4, 3e-3, log=True)
+       # lr = trial.suggest_float("lr", 1e-4, 3e-3, log=True)
 
-    # update optimizer params
-    exp.optimizer_params = {
-        'nus': (0.7, 1.0),
-        'betas': (0.95, 0.998),
-        'lr': lr
-    }
+        exp.optimizer_params = {
+            'nus': (0.7, 1.0),
+            'betas': (0.95, 0.998),
+            #'lr': lr
+        }
 
-    # =========================
-    # 🧠 Create model + trainer
-    # =========================
-    exp.create_model()
-    exp.create_trainer()
+        exp.create_model()
+        exp.create_trainer()
 
-    # =========================
-    # 🔁 FAST TRAINING LOOP
-    # =========================
-    batch_size = 1024  
-    steps = 200        
+        batch_size = 1024 * 16
+        steps = 5000
 
-    data_iter = lib.iterate_minibatches(
-        exp.data.X_train,
-        exp.data.y_train,
-        batch_size=batch_size,
-        shuffle=True,
-        epochs=1
-    )
+        data_iter = lib.iterate_minibatches(
+            exp.data.X_train,
+            exp.data.y_train,
+            batch_size=batch_size,
+            shuffle=True,
+            epochs=10
+        )
 
-    for step, batch in enumerate(data_iter):
-        exp.trainer.train_on_batch(*batch, device=exp.device)
+        for step, batch in enumerate(data_iter):
+            xb, yb = batch
+            xb = torch.as_tensor(xb, device=exp.device)
+            yb = torch.as_tensor(yb, device=exp.device)
 
-        # stop early for speed
-        if step >= steps:
-            break
+            exp.trainer.train_on_batch(xb, yb, device=exp.device)
 
-    # =========================
-    # 📊 VALIDATION SCORE
-    # =========================
-    f1 = exp.evaluate_f1(exp.data.X_valid, exp.data.y_valid)
+            if step >= steps:
+                break
 
-    return f1
+        f1 = exp.evaluate_f1(exp.data.X_valid, exp.data.y_valid)
+
+        return f1
+
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower():
+            print("⚠️ OOM detected, skipping trial")
+
+            torch.cuda.empty_cache()  # VERY IMPORTANT
+
+            return float("-inf")  # bad score so Optuna skips it
+        else:
+            raise e
 
 
 # =========================

@@ -349,15 +349,15 @@ class UniMiBExperiment:
     def print_gpu_memory(self, tag=""):
         if torch.cuda.is_available():
             print(f"\n[GPU MEMORY] {tag}")
-            print(f"Allocated: {torch.cuda.memory_allocated()/1024**2:.2f} MB")
-            print(f"Reserved : {torch.cuda.memory_reserved()/1024**2:.2f} MB")
-            print(f"Peak     : {torch.cuda.max_memory_allocated()/1024**2:.2f} MB")
+            print(f"Allocated: {torch.cuda.memory_allocated()/1024**2:.2f} MB, {torch.cuda.memory_allocated()/1024:.2f} KB")
+            print(f"Reserved : {torch.cuda.memory_reserved()/1024**2:.2f} MB, {torch.cuda.memory_reserved()/1024:.2f} KB")
+            print(f"Peak     : {torch.cuda.max_memory_allocated()/1024**2:.2f} MB, {torch.cuda.max_memory_allocated()/1024:.2f} KB")
 
 if __name__ == "__main__":
-    layer_dim = 4
-    num_layers = 4
+    layer_dim = 13
+    num_layers = 5
     depth = 2
-    epochs = 100
+    epochs = 10
     is_generate_graph = False
     experiment = UniMiBExperiment(gpu_id=0, 
                                   layer_dim=layer_dim, 
