@@ -32,7 +32,8 @@ DATA_PATH = os.path.abspath(DATA_PATH)
 
 
 class UniMiBExperiment:
-    def __init__(self, gpu_id=0):
+    def __init__(self, gpu_id=0, layer_dim = 64, num_layers = 8, depth = 6
+                 , is_generate_graph = True, epochs = 50):
         self.gpu_id = gpu_id
         self.device = self._setup_device()
         self.experiment_name = self._create_experiment_name()
@@ -52,21 +53,32 @@ class UniMiBExperiment:
         self.best_step_mse = 0
         self.best_step_f1 = 0
         self.early_stopping_rounds = 5000
-        self.report_frequency = 100
+        self.report_frequency = 1000
         self.fig = None
         self.axes = None
-        self.layer_dim = 64 #number of trees in each NODE layer
-        self.num_layers = 8 #umber of layers in the block
+        self.layer_dim = layer_dim#64 #number of trees in each NODE layer
+        self.num_layers = num_layers#8 #umber of layers in the block
         self.tree_dim = 17 #number of output features per tree (default 1, i.e. scalar output)
-        self.depth = 6 #depth of each tree (default 6, i.e. 64 leafs per tree)
-        self.best_model_path = "best_model.pt"#f"best_model_ld-{self.layer_dim}_nl-{self.num_layers}_td-{self.tree_dim}.pt"
-        self.choice_function = sparsemax #lib.entmax15
-        self.bin_function = sparsemoid #lib.entmoid15
+        self.depth = depth#6 #depth of each tree (default 6, i.e. 64 leafs per tree)
+        self.best_model_path = f"best_model_ld-{self.layer_dim}_nl-{self.num_layers}_td-{self.tree_dim}.pt"#"best_model.pt"#f"best_model_ld-{self.layer_dim}_nl-{self.num_layers}_td-{self.tree_dim}.pt"
+        self.choice_function = lib.entmax15
+        self.bin_function = lib.entmoid15
+        self.is_generate_graph = is_generate_graph
+        self.epochs = epochs
 
     def _setup_device(self):
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(self.gpu_id)
+        # os.environ["CUDA_VISIBLE_DEVICES"] = str(self.gpu_id)
+        # device = "cuda" if torch.cuda.is_available() else "cpu"
+        # print(f"Using device: {device}")
+        # return device
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"Using device: {device}")
+        
+        if torch.cuda.is_available():
+            print(f"Number of GPUs: {torch.cuda.device_count()}")
+            for i in range(torch.cuda.device_count()):
+                print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+
         return device
 
     def _create_experiment_name(self):
@@ -140,13 +152,25 @@ class UniMiBExperiment:
             dense,
             #lib.Lambda(lambda x: x.mean(dim=-1).mean(dim=-1)),
             #lib.Lambda(lambda x: x.mean(dim=-1)), # average over trees, keep output shape (batch_size, layer_dim * tree_dim)
-            #lib.Lambda(lambda x: x.mean(dim=-2)), # average over layers, keep output shape (batch_size, tree_dim)
-            nn.Flatten(), # flatten to (batch_size, layer_dim * tree_dim)
-            nn.Linear(flat_dim, self.num_classes) # final linear layer to output logits for each class
+            lib.Lambda(lambda x: x.mean(dim=-2)), # average over all trees (from all layers), output shape: (batch_size, tree_dim) = (batch_size, num_classes)
+            # nn.Flatten(), # flatten to (batch_size, layer_dim * tree_dim)
+            # nn.Linear(flat_dim, self.num_classes) # final linear layer to output logits for each class
         ).to(self.device)
     
         if torch.cuda.device_count() > 1: # Wrap model with DataParallel if multiple GPUs are available
             self.model = nn.DataParallel(self.model) # This will automatically split input across GPUs and gather outputs
+
+        # After model is created
+        self.print_gpu_memory("After model creation")
+
+        # Measure forward pass memory
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+
+            dummy = torch.as_tensor(self.data.X_train[:1024], device=self.device)
+            _ = self.model(dummy)
+
+            self.print_gpu_memory("After dummy forward pass")
 
     def declare_optimizer_param(self):
         self.optimizer_params = { 'nus':(0.7, 1.0), 'betas':(0.95, 0.998) }
@@ -156,7 +180,7 @@ class UniMiBExperiment:
         class_weight="balanced", # Automatically adjust weights inversely proportional to class frequencies
         classes=np.unique(self.data.y_train), # Get unique class labels from training data
         y=self.data.y_train # Provide training labels to compute class frequencies and weights
-    )
+        )
         class_weights = torch.tensor(weights, dtype=torch.float32).to(self.device) # Convert to tensor and move to device
         def weighted_loss(logits, y): # Define weighted cross-entropy loss function
             return F.cross_entropy(logits, y, weight=class_weights) # Use class weights in the loss function
@@ -187,22 +211,25 @@ class UniMiBExperiment:
         return f1_score(y, preds, average="macro")
     
     def train_data(self):
-        epochs = 50
-        batch_size = 1024
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+        epochs = self.epochs
+        batch_size = 1024*16
         #batch_size_mse = 16384
         report_frequency = self.report_frequency
         for batch in lib.iterate_minibatches(self.data.X_train, self.data.y_train, batch_size=batch_size, shuffle=True, epochs=epochs):
-            print("Number of trainer.step:", self.trainer.step)
+            # print("Number of trainer.step:", self.trainer.step)
             metrics = self.trainer.train_on_batch(*batch, device=self.device)
             
             # FIX: convert tensor to number
             self.loss_history.append(metrics['loss'].item())
-            if self.trainer.step < report_frequency:
-                report_frequency = self.trainer.step
-            else:
-                report_frequency = self.report_frequency
+            # if self.trainer.step < report_frequency:
+            #     report_frequency = self.trainer.step
+            # else:
+            #     report_frequency = self.report_frequency
 
             if self.trainer.step % report_frequency == 0:
+                self.print_gpu_memory(f"Step {self.trainer.step}")
                 self.trainer.save_checkpoint()
                 self.trainer.average_checkpoints(out_tag='avg')
                 self.trainer.load_checkpoint(tag='avg')
@@ -226,8 +253,9 @@ class UniMiBExperiment:
                 
                 self.trainer.load_checkpoint()  # last
                 self.trainer.remove_old_temp_checkpoints()
-
-                self.update_plots()
+                
+                if self.is_generate_graph:
+                    self.update_plots()
 
                 print(f"Step {self.trainer.step}")
                 print(f"Loss: {metrics['loss'].item():.5f}")
@@ -245,6 +273,7 @@ class UniMiBExperiment:
                 print("Best step:", self.best_step_f1)
                 print("Best Val F1: %0.5f" % self.best_f1)
                 break
+        self.print_gpu_memory("Final peak after training")
             
     def update_plots(self):
         self.axes[0].clear()
@@ -299,22 +328,41 @@ class UniMiBExperiment:
             print("Model loaded. Skipping training.")
         else:
             print("Start trainning...")
-            plt.ion()
-            self.fig, self.axes = plt.subplots(1, 2, figsize=(18, 6))
+            if is_generate_graph:
+                plt.ion()
+                self.fig, self.axes = plt.subplots(1, 2, figsize=(18, 6))
             self.train_data()
             torch.save(self.model.state_dict(), self.best_model_path)
-            # Keep final plot visible
-            plt.ioff()     # turn OFF interactive mode
-            plt.show()     # now it BLOCKS and stays open
+            if self.is_generate_graph:
+                # Keep final plot visible
+                plt.ioff()     # turn OFF interactive mode
+                plt.show()     # now it BLOCKS and stays open
             print("Trainning end")
         
 
         print("Load checkpoint...")
         self.load_checkpoint()
-        print("Delete logs...")
-        self.delete_logs()
+        # print("Delete logs...")
+        # self.delete_logs()
         print("The end")
+    
+    def print_gpu_memory(self, tag=""):
+        if torch.cuda.is_available():
+            print(f"\n[GPU MEMORY] {tag}")
+            print(f"Allocated: {torch.cuda.memory_allocated()/1024**2:.2f} MB")
+            print(f"Reserved : {torch.cuda.memory_reserved()/1024**2:.2f} MB")
+            print(f"Peak     : {torch.cuda.max_memory_allocated()/1024**2:.2f} MB")
 
 if __name__ == "__main__":
-    experiment = UniMiBExperiment(gpu_id=0)
+    layer_dim = 4
+    num_layers = 4
+    depth = 2
+    epochs = 100
+    is_generate_graph = False
+    experiment = UniMiBExperiment(gpu_id=0, 
+                                  layer_dim=layer_dim, 
+                                  num_layers=num_layers, 
+                                  depth=depth, 
+                                  is_generate_graph=is_generate_graph,
+                                   epochs=epochs )
     experiment.run()
