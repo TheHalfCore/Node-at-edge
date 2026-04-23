@@ -65,6 +65,9 @@ class UniMiBExperiment:
         self.bin_function = lib.entmoid15
         self.is_generate_graph = is_generate_graph
         self.epochs = epochs
+        self.gpu_alloc = 0
+        self.gpu_peak = 0
+        self.gpu_reserved = 0
 
     def _setup_device(self):
         # os.environ["CUDA_VISIBLE_DEVICES"] = str(self.gpu_id)
@@ -161,7 +164,7 @@ class UniMiBExperiment:
             self.model = nn.DataParallel(self.model) # This will automatically split input across GPUs and gather outputs
 
         # After model is created
-        self.print_gpu_memory("After model creation")
+        self.print_gpu_memory_save("After model creation")
 
         # Measure forward pass memory
         if torch.cuda.is_available():
@@ -273,7 +276,7 @@ class UniMiBExperiment:
                 print("Best step:", self.best_step_f1)
                 print("Best Val F1: %0.5f" % self.best_f1)
                 break
-        self.print_gpu_memory("Final peak after training")
+            self.print_gpu_memory("Final peak after training")
             
     def update_plots(self):
         self.axes[0].clear()
@@ -347,11 +350,27 @@ class UniMiBExperiment:
         print("The end")
     
     def print_gpu_memory(self, tag=""):
-        if torch.cuda.is_available():
+        if torch.cuda.is_available():           
             print(f"\n[GPU MEMORY] {tag}")
-            print(f"Allocated: {torch.cuda.memory_allocated()/1024**2:.2f} MB, {torch.cuda.memory_allocated()/1024:.2f} KB")
-            print(f"Reserved : {torch.cuda.memory_reserved()/1024**2:.2f} MB, {torch.cuda.memory_reserved()/1024:.2f} KB")
-            print(f"Peak     : {torch.cuda.max_memory_allocated()/1024**2:.2f} MB, {torch.cuda.max_memory_allocated()/1024:.2f} KB")
+            print(f"Allocated: {torch.cuda.memory_allocated() / 1024**2:.2f} MB, {torch.cuda.memory_allocated()/1024:.2f} KB")
+            print(f"Reserved : {torch.cuda.memory_reserved() / 1024**2:.2f} MB, {torch.cuda.memory_reserved()/1024:.2f} KB")
+            print(f"Peak     : {torch.cuda.max_memory_allocated() / 1024**2:.2f} MB, {torch.cuda.max_memory_allocated()/1024:.2f} KB")
+    
+    def print_gpu_memory_save(self, tag="final"):   
+        if torch.cuda.is_available():
+            alloc_bytes = torch.cuda.memory_allocated()
+            reserved_bytes = torch.cuda.memory_reserved()
+            peak_bytes = torch.cuda.max_memory_allocated()
+
+            # store in MB
+            self.gpu_alloc = alloc_bytes / (1024**2)
+            self.gpu_reserved = reserved_bytes / (1024**2)
+            self.gpu_peak = peak_bytes / (1024**2)
+            
+            print(f"\n[GPU MEMORY] {tag}")
+            print(f"Allocated: {self.gpu_alloc:.2f} MB")
+            print(f"Reserved: {self.gpu_reserved:.2f} MB")
+            print(f"Peak: {self.gpu_peak:.2f} MB")
 
 if __name__ == "__main__":
     layer_dim = 13

@@ -1,5 +1,6 @@
 import sys
 import os
+import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import optuna
@@ -14,7 +15,9 @@ def objective(trial):
     try:
         exp = UniMiBExperiment(gpu_id=0)
         exp.device = "cuda"   # using GPU
-
+        
+        torch.cuda.empty_cache()  # clear GPU memory before starting
+        
         exp.load_and_preprocess_data()
 
         # hyperparameters
@@ -55,19 +58,49 @@ def objective(trial):
                 break
 
         f1 = exp.evaluate_f1(exp.data.X_valid, exp.data.y_valid)
-
+        
+        log_trial({ # log the successful trial with its F1 and memory stats
+            "layer_dim": exp.layer_dim,
+            "num_layers": exp.num_layers,
+            "depth": exp.depth,
+            "alloc_memory": exp.gpu_alloc,
+            "res_memory": exp.gpu_reserved,
+            "max_alloc_memory": exp.gpu_peak,
+            "f1_score": f1
+        })
+        
         return f1
 
-    except RuntimeError as e:
+    except RuntimeError as e: # catch OOM errors
         if "out of memory" in str(e).lower():
             print("⚠️ OOM detected, skipping trial")
 
+            log_trial({ # log the failed trial with -1 for memory and f1
+                "layer_dim": exp.layer_dim,
+                "num_layers": exp.num_layers,
+                "depth": exp.depth,
+                "alloc_memory": -1,
+                "res_memory": -1,
+                "max_alloc_memory": -1,
+                "f1_score": float("-inf")
+            })
+            
             torch.cuda.empty_cache()  # VERY IMPORTANT
 
             return float("-inf")  # bad score so Optuna skips it
         else:
             raise e
 
+# =========================
+# 📝 LOGGING FUNCTION
+# =========================
+def log_trial(result_dict, filename="optuna_NODE_results.csv"):
+    df = pd.DataFrame([result_dict])
+
+    if os.path.exists(filename):
+        df.to_csv(filename, mode='a', header=False, index=False)
+    else:
+        df.to_csv(filename, mode='w', header=True, index=False)
 
 # =========================
 # 🚀 RUN OPTUNA
@@ -85,29 +118,29 @@ if __name__ == "__main__":
     # # =========================
     # # 🏆 TRAIN FINAL MODEL
     # # =========================
-    # best = study.best_params
+    best = study.best_params
 
-    # exp = UniMiBExperiment(gpu_id=0)
-    # exp.device = "cpu"
+    exp = UniMiBExperiment(gpu_id=0)
+    exp.device = "cuda"
 
-    # exp.load_and_preprocess_data()
+    exp.load_and_preprocess_data()
 
-    # exp.layer_dim = best["layer_dim"]
-    # exp.num_layers = best["num_layers"]
-    # exp.depth = best["depth"]
+    exp.layer_dim = best["layer_dim"]
+    exp.num_layers = best["num_layers"]
+    exp.depth = best["depth"]
 
-    # exp.optimizer_params = {
-    #     'nus': (0.7, 1.0),
-    #     'betas': (0.95, 0.998),
-    #     'lr': best["lr"]
-    # }
+    exp.optimizer_params = {
+        'nus': (0.7, 1.0),
+        'betas': (0.95, 0.998),
+        'lr': best["lr"]
+    }
 
-    # exp.create_model()
-    # exp.create_trainer()
+    exp.create_model()
+    exp.create_trainer()
 
-    # print("\n🚀 Training final model with best params...")
-    # exp.train_data()
+    print("\n🚀 Training final model with best params...")
+    exp.train_data()
 
-    # torch.save(exp.model.state_dict(), "best_optuna_model.pt")
+    torch.save(exp.model.state_dict(), "best_optuna_model.pt")
 
-    # print("✅ Model saved: best_optuna_model.pt")
+    print("✅ Model saved: best_optuna_model.pt")

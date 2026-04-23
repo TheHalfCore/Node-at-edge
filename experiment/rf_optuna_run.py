@@ -39,6 +39,14 @@ process = psutil.Process(os.getpid())
 def get_memory_mb(): # Returns the current memory usage of the process in MB
     return process.memory_info().rss / (1024 ** 2)
 
+def log_trial(result_dict, filename="optuna_RF_results.csv"):
+    df = pd.DataFrame([result_dict])
+
+    if os.path.exists(filename):
+        df.to_csv(filename, mode='a', header=False, index=False)
+    else:
+        df.to_csv(filename, mode='w', header=True, index=False)
+
 train_agg = aggregate_windows(train)
 val_agg   = aggregate_windows(val)
 test_agg  = aggregate_windows(test)
@@ -61,8 +69,8 @@ def objective(trial):
     memory_before = get_memory_mb()
     
     rf = RandomForestClassifier(
-        n_estimators=trial.suggest_int("n_estimators", 1, 2000),
-        max_depth=trial.suggest_int("max_depth", 2, 200),
+        n_estimators=trial.suggest_int("n_estimators", 1, 500),
+        max_depth=trial.suggest_int("max_depth", 2, 50),
         max_features=trial.suggest_categorical(
             "max_features", ["sqrt", "log2", None]
         ),
@@ -94,8 +102,20 @@ def objective(trial):
     print(f"F1: {f1:.4f}")
     print(f"Model size: {model_mem:.2f} MB")
     print(f"Training memory delta: {training_mem:.2f} MB")
+    
+    log_trial({ # log the successful trial with its F1 and memory stats
+            "n_estimators": rf.n_estimators,
+            "max_depth": rf.max_depth,
+            "max_features": rf.max_features,
+            "min_samples_split": rf.min_samples_split,
+            "min_samples_leaf": rf.min_samples_leaf,
+            "model_size_mb": model_mem,
+            "training_mem_mb": training_mem,
+            "f1_score": f1
+        })
+    
     return f1, model_mem
-
+        
 
 # =========================
 # 🚀 RUN OPTUNA
