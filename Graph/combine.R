@@ -2,19 +2,24 @@ library(ggplot2)
 library(dplyr)
 
 # --- Load data ---
-df_node <- read.csv("node.csv") %>% mutate(model = "NODE")
-df_rf   <- read.csv("rf.csv")   %>% mutate(model = "RF")
+df_node <- read.csv("optuna_NODE_results.csv") %>%
+  rename(memory = alloc_memory) %>%
+  mutate(model = "NODE")
+
+df_rf <- read.csv("optuna_RF_results.csv") %>%
+  rename(memory = model_size_mb) %>%
+  mutate(model = "RF")
 
 # --- Combine datasets ---
 df_all <- bind_rows(df_node, df_rf)
 
-# --- Pareto function (keep your cummax version if you want) ---
+# --- Pareto function ---
 get_pareto <- function(df) {
   df %>%
-    arrange(model_memory_kb, desc(f1_score)) %>%
+    arrange(memory, desc(f1_score)) %>%
     mutate(best_so_far = cummax(f1_score)) %>%
     filter(f1_score == best_so_far) %>%
-    distinct(model_memory_kb, f1_score, .keep_all = TRUE)
+    distinct(memory, f1_score, .keep_all = TRUE)
 }
 
 # --- Compute Pareto per model ---
@@ -24,13 +29,13 @@ df_pareto <- df_all %>%
   ungroup()
 
 # --- Plot ---
-ggplot(df_all, aes(x = model_memory_kb, y = f1_score, color = model)) +
+ggplot(df_all, aes(x = memory, y = f1_score, color = model)) +
   
   # All points
   geom_point(alpha = 0.5, size = 2.5) +
   
   # Pareto lines
-  geom_line(data = df_pareto %>% arrange(model, model_memory_kb),
+  geom_line(data = df_pareto %>% arrange(model, memory),
             linewidth = 1) +
   
   # Pareto points
@@ -42,7 +47,7 @@ ggplot(df_all, aes(x = model_memory_kb, y = f1_score, color = model)) +
   theme_minimal() +
   labs(
     title = "Pareto Frontier: NODE vs RF",
-    x = "Model Memory (KB)",
+    x = "Model Memory (MB)",
     y = "F1 Score",
     color = "Model"
   )
