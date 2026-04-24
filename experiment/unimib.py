@@ -173,7 +173,7 @@ class UniMiBExperiment:
             dummy = torch.as_tensor(self.data.X_train[:1024], device=self.device)
             _ = self.model(dummy)
 
-            self.print_gpu_memory("After dummy forward pass")
+            #self.print_gpu_memory("After dummy forward pass")
 
     def declare_optimizer_param(self):
         self.optimizer_params = { 'nus':(0.7, 1.0), 'betas':(0.95, 0.998) }
@@ -232,7 +232,7 @@ class UniMiBExperiment:
             #     report_frequency = self.report_frequency
 
             if self.trainer.step % report_frequency == 0:
-                self.print_gpu_memory(f"Step {self.trainer.step}")
+                #self.print_gpu_memory(f"Step {self.trainer.step}")
                 self.trainer.save_checkpoint()
                 self.trainer.average_checkpoints(out_tag='avg')
                 self.trainer.load_checkpoint(tag='avg')
@@ -373,9 +373,9 @@ class UniMiBExperiment:
             print(f"Peak: {self.gpu_peak:.2f} MB")
 
 if __name__ == "__main__":
-    layer_dim = 13
-    num_layers = 5
-    depth = 2
+    layer_dim = 42
+    num_layers = 7
+    depth = 4
     epochs = 10
     is_generate_graph = False
     experiment = UniMiBExperiment(gpu_id=0, 

@@ -17,7 +17,7 @@ def objective(trial):
         exp.device = "cuda"   # using GPU
         
         torch.cuda.empty_cache()  # clear GPU memory before starting
-        
+
         exp.load_and_preprocess_data()
 
         # hyperparameters
@@ -58,6 +58,8 @@ def objective(trial):
                 break
 
         f1 = exp.evaluate_f1(exp.data.X_valid, exp.data.y_valid)
+
+        torch.cuda.reset_peak_memory_stats()  # reset peak memory stats
         
         log_trial({ # log the successful trial with its F1 and memory stats
             "layer_dim": exp.layer_dim,
