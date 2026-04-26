@@ -30,25 +30,47 @@ def aggregate_windows(df): # Aggregate sensor data by window (ID)
 
     return agg.reset_index(drop=True)
 
+def flatten_windows(df):
+    sequences = []
+    labels = []
 
-train_agg = aggregate_windows(train)
-val_agg   = aggregate_windows(val)
-test_agg  = aggregate_windows(test)
+    for _, group in df.groupby("ID"):
+        group = group.sort_index()
 
-print(train_agg.shape)
+        # take only sensor values
+        values = group[["ax", "ay", "az", "mag"]].values.flatten()
 
-X_train = train_agg.drop(columns=["label_first"]) # Drop the label column for training
-y_train = train_agg["label_first"] # Extract the label column for training
+        sequences.append(values)
+        labels.append(group["label"].iloc[0])
 
-X_val = val_agg.drop(columns=["label_first"]) # Drop the label column for validation
-y_val = val_agg["label_first"] # Extract the label column for validation
+    return pd.DataFrame(sequences), pd.Series(labels)
 
-X_test = test_agg.drop(columns=["label_first"]) # Drop the label column for testing
-y_test = test_agg["label_first"] # Extract the label column for testing
+# train_agg = aggregate_windows(train)
+# val_agg   = aggregate_windows(val)
+# test_agg  = aggregate_windows(test)
+
+# print(train_agg.shape)
+
+# X_train = train.drop(columns=["label_first"]) # Drop the label column for training
+# y_train = train["label_first"] # Extract the label column for training
+X_train = train.drop(columns=["label"]).values.astype("float32")
+y_train = train["label"].values.astype("int64")
+
+# X_val = val.drop(columns=["label_first"]) # Drop the label column for validation
+# y_val = val["label_first"] # Extract the label column for validation
+
+X_val = val.drop(columns=["label"]).values.astype("float32")
+y_val = val["label"].values.astype("int64")
+
+# X_test = test.drop(columns=["label_first"]) # Drop the label column for testing
+# y_test = test["label_first"] # Extract the label column for testing
+
+X_test = test.drop(columns=["label"]).values.astype("float32")
+y_test = test["label"].values.astype("int64")
 
 rf = RandomForestClassifier(
-    n_estimators=8,     # match NODE: 8 trees
-    max_depth=2,        # match NODE depth
+    n_estimators=222,     # match NODE: 8 trees
+    max_depth=29,        # match NODE depth
     max_features=None,  # use all features (like NODE)
     bootstrap=True,     # use bootstrap samples (like NODE)
     random_state=42,    # for reproducibility

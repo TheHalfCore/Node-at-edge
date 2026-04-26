@@ -58,7 +58,7 @@ class UniMiBExperiment:
         self.axes = None
         self.layer_dim = layer_dim#64 #number of trees in each NODE layer
         self.num_layers = num_layers#8 #umber of layers in the block
-        self.tree_dim = 17 #number of output features per tree (default 1, i.e. scalar output)
+        self.tree_dim = 8 #number of output features per tree (default 1, i.e. scalar output)
         self.depth = depth#6 #depth of each tree (default 6, i.e. 64 leafs per tree)
         self.best_model_path = f"best_model_ld-{self.layer_dim}_nl-{self.num_layers}_td-{self.tree_dim}.pt"#"best_model.pt"#f"best_model_ld-{self.layer_dim}_nl-{self.num_layers}_td-{self.tree_dim}.pt"
         self.choice_function = lib.entmax15
@@ -176,7 +176,7 @@ class UniMiBExperiment:
             #self.print_gpu_memory("After dummy forward pass")
 
     def declare_optimizer_param(self):
-        self.optimizer_params = { 'nus':(0.7, 1.0), 'betas':(0.95, 0.998) }
+        self.optimizer_params = { 'nus':(0.7, 1.0), 'betas':(0.95, 0.998), 'lr': 0.0010802 }
     
     def create_trainer(self):
         weights = compute_class_weight( # Compute class weights to handle class imbalance
@@ -217,7 +217,7 @@ class UniMiBExperiment:
         if torch.cuda.is_available():
             torch.cuda.reset_peak_memory_stats()
         epochs = self.epochs
-        batch_size = 1024*16
+        batch_size = 128 
         #batch_size_mse = 16384
         report_frequency = self.report_frequency
         for batch in lib.iterate_minibatches(self.data.X_train, self.data.y_train, batch_size=batch_size, shuffle=True, epochs=epochs):
@@ -373,10 +373,10 @@ class UniMiBExperiment:
             print(f"Peak: {self.gpu_peak:.2f} MB")
 
 if __name__ == "__main__":
-    layer_dim = 42
-    num_layers = 7
-    depth = 4
-    epochs = 10
+    layer_dim = 32
+    num_layers = 5
+    depth = 5
+    epochs = 50
     is_generate_graph = False
     experiment = UniMiBExperiment(gpu_id=0, 
                                   layer_dim=layer_dim, 

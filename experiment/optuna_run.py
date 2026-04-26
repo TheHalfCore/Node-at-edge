@@ -1,3 +1,4 @@
+from math import exp
 import sys
 import os
 import pandas as pd
@@ -21,22 +22,25 @@ def objective(trial):
         exp.load_and_preprocess_data()
 
         # hyperparameters
-        exp.layer_dim = trial.suggest_int("layer_dim", 1, 64)
-        exp.num_layers = trial.suggest_int("num_layers", 1, 8)
-        exp.depth = trial.suggest_int("depth", 1, 4)
+        exp.layer_dim = trial.suggest_int("layer_dim", 1, 48)
+        exp.num_layers = trial.suggest_int("num_layers", 1, 6)
+        exp.depth = trial.suggest_int("depth", 1, 5)
+        exp.tree_dim = trial.suggest_int("tree_dim", 1, 8)
+        batch_size = trial.suggest_categorical("batch_size", [64, 128, 256, 512, 1024])
+        epochs = trial.suggest_int("epochs", 10, 200)
+        lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
 
-       # lr = trial.suggest_float("lr", 1e-4, 3e-3, log=True)
-
+        exp.epochs = epochs
+        
         exp.optimizer_params = {
             'nus': (0.7, 1.0),
             'betas': (0.95, 0.998),
-            #'lr': lr
+            'lr': lr
         }
 
         exp.create_model()
         exp.create_trainer()
-
-        batch_size = 1024 * 16
+        
         steps = 5000
 
         data_iter = lib.iterate_minibatches(
@@ -44,7 +48,7 @@ def objective(trial):
             exp.data.y_train,
             batch_size=batch_size,
             shuffle=True,
-            epochs=10
+            epochs=epochs
         )
 
         for step, batch in enumerate(data_iter):
@@ -65,6 +69,9 @@ def objective(trial):
             "layer_dim": exp.layer_dim,
             "num_layers": exp.num_layers,
             "depth": exp.depth,
+            "lr": lr,
+            "batch_size": batch_size,
+            "epochs": epochs,
             "alloc_memory": exp.gpu_alloc,
             "res_memory": exp.gpu_reserved,
             "max_alloc_memory": exp.gpu_peak,
@@ -81,6 +88,9 @@ def objective(trial):
                 "layer_dim": exp.layer_dim,
                 "num_layers": exp.num_layers,
                 "depth": exp.depth,
+                "lr": lr,
+                "batch_size": batch_size,
+                "epochs": epochs,
                 "alloc_memory": -1,
                 "res_memory": -1,
                 "max_alloc_memory": -1,
@@ -96,7 +106,7 @@ def objective(trial):
 # =========================
 # 📝 LOGGING FUNCTION
 # =========================
-def log_trial(result_dict, filename="optuna_NODE_results.csv"):
+def log_trial(result_dict, filename="optuna_Test_NODE_withDataAgg_results.csv"):
     df = pd.DataFrame([result_dict])
 
     if os.path.exists(filename):

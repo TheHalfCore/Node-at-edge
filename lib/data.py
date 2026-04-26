@@ -470,6 +470,23 @@ def fetch_HAR(path):
         y_test=y_test
     )
 
+def aggregate_windows(df): # Aggregate sensor data by window (ID)
+    agg = df.groupby("ID").agg({ # Aggregate statistics for each sensor axis and magnitude
+        "ax": ["mean", "std", "min", "max"],
+        "ay": ["mean", "std", "min", "max"],
+        "az": ["mean", "std", "min", "max"],
+        "mag": ["mean", "std", "min", "max"],
+        "label": "first"
+    })
+
+    # Flatten column names
+    agg.columns = [
+        "_".join(col) if isinstance(col, tuple) else col
+        for col in agg.columns
+    ]
+
+    return agg.reset_index(drop=True)
+
 def fetch_UNIMIB(path):
 
     train_path = os.path.join(path, 'unimib_train.csv')
@@ -481,22 +498,37 @@ def fetch_UNIMIB(path):
     val_df   = pd.read_csv(val_path)
     test_df  = pd.read_csv(test_path)
 
+    train_agg = aggregate_windows(train_df)
+    val_agg   = aggregate_windows(val_df)
+    test_agg  = aggregate_windows(test_df)
+
     # Assume last column is label (adjust if needed)
-    X_train = train_df.drop(columns=["label"]).values.astype("float32")
-    y_train = train_df["label"].values.astype("int64")
+    # X_train = train_df.drop(columns=["label"]).values.astype("float32")
+    # y_train = train_df["label"].values.astype("int64")
+    
+    X_train = train_agg.drop(columns=["label_first"]).values.astype("float32") # Drop the label column for training
+    y_train = train_agg["label_first"].values.astype("int64") # Extract the label column for training
+    
 
     # X_train = train_df.iloc[:, :-1].values.astype('float32')
     # y_train = train_df.iloc[:, -1].values.astype('int64')
 
     # X_valid = val_df.iloc[:, :-1].values.astype('float32')
     # y_valid = val_df.iloc[:, -1].values.astype('int64')
-    X_valid = val_df.drop(columns=["label"]).values.astype("float32")
-    y_valid = val_df["label"].values.astype("int64")
+    # X_valid = val_df.drop(columns=["label"]).values.astype("float32")
+    # y_valid = val_df["label"].values.astype("int64")
+    
+    X_valid = val_agg.drop(columns=["label_first"]).values.astype("float32") # Drop the label column for validation
+    y_valid = val_agg["label_first"].values.astype("int64") # Extract the label column for validation
+
 
     # X_test = test_df.iloc[:, :-1].values.astype('float32')
     # y_test = test_df.iloc[:, -1].values.astype('int64')
-    X_test = test_df.drop(columns=["label"]).values.astype("float32")
-    y_test = test_df["label"].values.astype("int64")
+    # X_test = test_df.drop(columns=["label"]).values.astype("float32")
+    # y_test = test_df["label"].values.astype("int64")
+    
+    X_test = test_agg.drop(columns=["label_first"]).values.astype("float32") # Drop the label column for testing
+    y_test = test_agg["label_first"].values.astype("int64") # Extract the label column for testing
 
     return dict(
         X_train=X_train,
