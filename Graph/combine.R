@@ -2,11 +2,11 @@ library(ggplot2)
 library(dplyr)
 
 # --- Load data ---
-df_node <- read.csv("optuna_NODE_results.csv") %>%
+df_node <- read.csv("optuna_Test_NODE_withDataAgg_results.csv") %>%
   rename(memory = alloc_memory) %>%
   mutate(model = "NODE")
 
-df_rf <- read.csv("optuna_RF_results.csv") %>%
+df_rf <- read.csv("optuna_Test_RF_withDataAgg_results.csv") %>%
   rename(memory = model_size_mb) %>%
   mutate(model = "RF")
 
@@ -42,7 +42,22 @@ ggplot(df_all, aes(x = memory, y = f1_score, color = model)) +
   geom_point(data = df_pareto,
              size = 3) +
   
-  coord_cartesian(xlim = c(0, 450), ylim = c(0.5, 0.9)) +
+  scale_x_continuous(
+    breaks = seq(
+      floor(min(df_all$memory)),
+      ceiling(max(df_all$memory)),
+      by = 5
+    )
+  ) +
+  scale_y_continuous(
+    breaks = seq(
+      floor(min(df_all$f1_score) * 100) / 100,
+      ceiling(max(df_all$f1_score) * 100) / 100,
+      by = 0.02
+    )
+  )+
+  
+  #coord_cartesian(xlim = c(0, 450), ylim = c(0.5, 0.9)) +
   
   theme_minimal() +
   labs(
