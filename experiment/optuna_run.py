@@ -22,10 +22,10 @@ def objective(trial):
         exp.load_and_preprocess_data()
 
         # hyperparameters
-        exp.layer_dim = trial.suggest_int("layer_dim", 1, 48)
-        exp.num_layers = trial.suggest_int("num_layers", 1, 6)
-        exp.depth = trial.suggest_int("depth", 1, 5)
-        exp.tree_dim = trial.suggest_int("tree_dim", 1, 8)
+        exp.layer_dim = trial.suggest_int("layer_dim", 4, 48)
+        exp.num_layers = trial.suggest_int("num_layers", 2, 6)
+        exp.depth = trial.suggest_int("depth", 2, 5)
+        exp.tree_dim = trial.suggest_int("tree_dim", 4, 8)
         batch_size = trial.suggest_categorical("batch_size", [64, 128, 256, 512, 1024])
         epochs = trial.suggest_int("epochs", 10, 200)
         lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
@@ -63,6 +63,8 @@ def objective(trial):
 
         f1 = exp.evaluate_f1(exp.data.X_valid, exp.data.y_valid)
 
+        test_f1 = exp.evaluate_f1(exp.data.X_test, exp.data.y_test)
+
         torch.cuda.reset_peak_memory_stats()  # reset peak memory stats
         
         log_trial({ # log the successful trial with its F1 and memory stats
@@ -75,7 +77,8 @@ def objective(trial):
             "alloc_memory": exp.gpu_alloc,
             "res_memory": exp.gpu_reserved,
             "max_alloc_memory": exp.gpu_peak,
-            "f1_score": f1
+            "f1_score": f1,
+            "test_f1_score": test_f1
         })
         
         return f1
@@ -106,7 +109,7 @@ def objective(trial):
 # =========================
 # 📝 LOGGING FUNCTION
 # =========================
-def log_trial(result_dict, filename="optuna_Test_NODE_withDataAgg_results.csv"):
+def log_trial(result_dict, filename="optuna_NODE_withDataAgg_val_test_results.csv"):
     df = pd.DataFrame([result_dict])
 
     if os.path.exists(filename):
@@ -130,29 +133,29 @@ if __name__ == "__main__":
     # # =========================
     # # 🏆 TRAIN FINAL MODEL
     # # =========================
-    best = study.best_params
+    # best = study.best_params
 
-    exp = UniMiBExperiment(gpu_id=0)
-    exp.device = "cuda"
+    # exp = UniMiBExperiment(gpu_id=0)
+    # exp.device = "cuda"
 
-    exp.load_and_preprocess_data()
+    # exp.load_and_preprocess_data()
 
-    exp.layer_dim = best["layer_dim"]
-    exp.num_layers = best["num_layers"]
-    exp.depth = best["depth"]
+    # exp.layer_dim = best["layer_dim"]
+    # exp.num_layers = best["num_layers"]
+    # exp.depth = best["depth"]
 
-    exp.optimizer_params = {
-        'nus': (0.7, 1.0),
-        'betas': (0.95, 0.998),
-        'lr': best["lr"]
-    }
+    # exp.optimizer_params = {
+    #     'nus': (0.7, 1.0),
+    #     'betas': (0.95, 0.998),
+    #     'lr': best["lr"]
+    # }
 
-    exp.create_model()
-    exp.create_trainer()
+    # exp.create_model()
+    # exp.create_trainer()
 
-    print("\n🚀 Training final model with best params...")
-    exp.train_data()
+    # print("\n🚀 Training final model with best params...")
+    # exp.train_data()
 
-    torch.save(exp.model.state_dict(), "best_optuna_model.pt")
+    # torch.save(exp.model.state_dict(), "best_optuna_model.pt")
 
-    print("✅ Model saved: best_optuna_model.pt")
+    # print("✅ Model saved: best_optuna_model.pt")

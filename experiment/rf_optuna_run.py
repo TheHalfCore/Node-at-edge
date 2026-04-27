@@ -94,6 +94,8 @@ def objective(trial):
     #F1 score
     f1 = f1_score(y_val, y_val_pred, average="macro")
 
+    test_f1 = f1_score(y_test, rf.predict(X_test), average="macro")
+    
     # Log memory usage as user attributes in Optuna
     trial.set_user_attr("model_size_mb", model_mem)
     trial.set_user_attr("training_mem_mb", training_mem)
@@ -112,6 +114,7 @@ def objective(trial):
             "model_size_mb": model_mem,
             "training_mem_mb": training_mem,
             "f1_score": f1
+            "test_f1_score": test_f1
         })
     
     return f1, model_mem
