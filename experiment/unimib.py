@@ -138,7 +138,7 @@ class UniMiBExperiment:
         self.in_features,
         self.layer_dim,
         num_layers=self.num_layers,
-        tree_dim=self.num_classes,
+        tree_dim=self.tree_dim,
         depth=self.depth,
         flatten_output=False,
         choice_function=self.choice_function, 
@@ -155,9 +155,9 @@ class UniMiBExperiment:
             dense,
             #lib.Lambda(lambda x: x.mean(dim=-1).mean(dim=-1)),
             #lib.Lambda(lambda x: x.mean(dim=-1)), # average over trees, keep output shape (batch_size, layer_dim * tree_dim)
-            lib.Lambda(lambda x: x.mean(dim=-2)), # average over all trees (from all layers), output shape: (batch_size, tree_dim) = (batch_size, num_classes)
-            # nn.Flatten(), # flatten to (batch_size, layer_dim * tree_dim)
-            # nn.Linear(flat_dim, self.num_classes) # final linear layer to output logits for each class
+            #lib.Lambda(lambda x: x.mean(dim=-2)), # average over all trees (from all layers), output shape: (batch_size, tree_dim) = (batch_size, num_classes)
+            nn.Flatten(), # flatten to (batch_size, layer_dim * tree_dim)
+            nn.Linear(flat_dim, self.num_classes) # final linear layer to output logits for each class
         ).to(self.device)
     
         if torch.cuda.device_count() > 1: # Wrap model with DataParallel if multiple GPUs are available

@@ -22,12 +22,12 @@ def objective(trial):
         exp.load_and_preprocess_data()
 
         # hyperparameters
-        exp.layer_dim = trial.suggest_int("layer_dim", 4, 48)
+        exp.layer_dim = trial.suggest_int("layer_dim", 20, 48)
         exp.num_layers = trial.suggest_int("num_layers", 2, 6)
-        exp.depth = trial.suggest_int("depth", 2, 5)
+        exp.depth = trial.suggest_int("depth", 3, 5)
         exp.tree_dim = trial.suggest_int("tree_dim", 4, 8)
-        batch_size = trial.suggest_categorical("batch_size", [64, 128, 256, 512, 1024])
-        epochs = trial.suggest_int("epochs", 10, 200)
+        batch_size = trial.suggest_categorical("batch_size", [256, 512])
+        epochs = trial.suggest_int("epochs", 130, 200)
         lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
 
         exp.epochs = epochs
@@ -109,13 +109,13 @@ def objective(trial):
 # =========================
 # 📝 LOGGING FUNCTION
 # =========================
-def log_trial(result_dict, filename="optuna_NODE_withDataAgg_val_test_results.csv"):
+def log_trial(result_dict, filename="optuna_Test_NODE_withDataAgg_results.csv"):
     df = pd.DataFrame([result_dict])
-
-    if os.path.exists(filename):
-        df.to_csv(filename, mode='a', header=False, index=False)
-    else:
-        df.to_csv(filename, mode='w', header=True, index=False)
+    df.to_csv(filename, mode='w', header=True, index=False)
+    # if os.path.exists(filename):
+    #     df.to_csv(filename, mode='a', header=False, index=False)
+    # else:
+    #     df.to_csv(filename, mode='w', header=True, index=False)
 
 # =========================
 # 🚀 RUN OPTUNA
@@ -130,9 +130,9 @@ if __name__ == "__main__":
     print("Best Params:", study.best_params)
 
 
-    # # =========================
-    # # 🏆 TRAIN FINAL MODEL
-    # # =========================
+    # # # =========================
+    # # # 🏆 TRAIN FINAL MODEL
+    # # # =========================
     # best = study.best_params
 
     # exp = UniMiBExperiment(gpu_id=0)
