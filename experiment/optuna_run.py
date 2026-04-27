@@ -9,6 +9,7 @@ import torch
 import lib
 from unimib import UniMiBExperiment  # your file
 
+filename = "optuna_Test_NODE_withDataAgg_results.csv"
 # =========================
 # ✅ OPTUNA OBJECTIVE
 # =========================
@@ -70,6 +71,7 @@ def objective(trial):
         log_trial({ # log the successful trial with its F1 and memory stats
             "layer_dim": exp.layer_dim,
             "num_layers": exp.num_layers,
+            "tree_dim": exp.tree_dim,
             "depth": exp.depth,
             "lr": lr,
             "batch_size": batch_size,
@@ -90,6 +92,7 @@ def objective(trial):
             log_trial({ # log the failed trial with -1 for memory and f1
                 "layer_dim": exp.layer_dim,
                 "num_layers": exp.num_layers,
+                "tree_dim": exp.tree_dim,
                 "depth": exp.depth,
                 "lr": lr,
                 "batch_size": batch_size,
@@ -109,18 +112,19 @@ def objective(trial):
 # =========================
 # 📝 LOGGING FUNCTION
 # =========================
-def log_trial(result_dict, filename="optuna_Test_NODE_withDataAgg_results.csv"):
+def log_trial(result_dict):
     df = pd.DataFrame([result_dict])
-    df.to_csv(filename, mode='w', header=True, index=False)
-    # if os.path.exists(filename):
-    #     df.to_csv(filename, mode='a', header=False, index=False)
-    # else:
-    #     df.to_csv(filename, mode='w', header=True, index=False)
+    if os.path.exists(filename):
+        df.to_csv(filename, mode='a', header=False, index=False)
+    else:
+        df.to_csv(filename, mode='w', header=True, index=False)
 
 # =========================
 # 🚀 RUN OPTUNA
 # =========================
 if __name__ == "__main__":
+    if os.path.exists(filename):
+        os.remove(filename)
     study = optuna.create_study(direction="maximize")
     n_trials = int(input("Enter number of trials [20]: "))
     study.optimize(objective, n_trials=n_trials)

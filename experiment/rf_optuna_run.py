@@ -6,7 +6,9 @@ import pickle
 import sys
 import psutil
 import os
+from memory_profiler import memory_usage
 
+filename = "optuna_Test_RF_withDataAgg_results.csv"
 # =========================
 # 📂 LOAD DATA (same as yours)
 # =========================
@@ -39,7 +41,7 @@ process = psutil.Process(os.getpid())
 def get_memory_mb(): # Returns the current memory usage of the process in MB
     return process.memory_info().rss / (1024 ** 2)
 
-def log_trial(result_dict, filename="optuna_RF_results.csv"):
+def log_trial(result_dict, filename=filename):
     df = pd.DataFrame([result_dict])
 
     if os.path.exists(filename):
@@ -65,8 +67,6 @@ y_test = test_agg["label_first"]
 # 🎯 OPTUNA OBJECTIVE
 # =========================
 def objective(trial):
-
-    memory_before = get_memory_mb()
     
     rf = RandomForestClassifier(
         n_estimators=trial.suggest_int("n_estimators", 1, 300),
@@ -82,11 +82,12 @@ def objective(trial):
     )
     ## min_samples_split = 2 default value
     ## min_samples_leaf  = 1
-    rf.fit(X_train, y_train)
-
+    def train_model():
+        rf.fit(X_train, y_train)
+        return rf
+    
     # Memory usage
-    memory_after = get_memory_mb()
-    training_mem = memory_after - memory_before
+    train_mem_usage, rf = memory_usage((train_model,), retval=True, interval=0.1, max_usage=True) # Get the peak memory usage during training
     model_mem = get_model_size_mb(rf)
     
     #Validation
@@ -98,12 +99,12 @@ def objective(trial):
     
     # Log memory usage as user attributes in Optuna
     trial.set_user_attr("model_size_mb", model_mem)
-    trial.set_user_attr("training_mem_mb", training_mem)
+    trial.set_user_attr("training_mem_mb", train_mem_usage)
 
     print(f"\nTrial {trial.number}")
     print(f"F1: {f1:.4f}")
     print(f"Model size: {model_mem:.2f} MB")
-    print(f"Training memory delta: {training_mem:.2f} MB")
+    print(f"Training memory delta: {train_mem_usage:.2f} MB")
     
     log_trial({ # log the successful trial with its F1 and memory stats
             "n_estimators": rf.n_estimators,
@@ -112,18 +113,20 @@ def objective(trial):
             "min_samples_split": rf.min_samples_split,
             "min_samples_leaf": rf.min_samples_leaf,
             "model_size_mb": model_mem,
-            "training_mem_mb": training_mem,
-            "f1_score": f1
+            "training_mem_mb": train_mem_usage,
+            "f1_score": f1,
             "test_f1_score": test_f1
         })
     
-    return f1, model_mem
+    return f1, model_mem  # We want to maximize F1 and minimize model size
         
 
 # =========================
 # 🚀 RUN OPTUNA
 # =========================
 if __name__ == "__main__":
+    if os.path.exists(filename):
+        os.remove(filename)
     study = optuna.create_study(directions=["maximize", "minimize"]) # We want to maximize F1 and minimize model size
     n_trials = int(input("Enter number of trials [30]: "))
     study.optimize(objective, n_trials=n_trials)
@@ -132,8 +135,8 @@ if __name__ == "__main__":
     best_f1 = -1
 
     for t in study.trials:
-        f1, mem = t.values
-        if mem < 10 and f1 > best_f1:  # e.g. 10 MB limit
+        f1 = t.values[0]
+        if f1 > best_f1:
             best_f1 = f1
             best_trial = t
 
@@ -161,17 +164,17 @@ if __name__ == "__main__":
     # # =========================
     # # 🏆 TRAIN FINAL MODEL
     # # =========================
-    best = study.best_trials[0].params  # Get the params of the best trial (you can also choose based on a trade-off)
+    # best = study.best_trials[0].params  # Get the params of the best trial (you can also choose based on a trade-off)
 
-    rf = RandomForestClassifier(
-        **best,
-        bootstrap=True,
-        random_state=42,
-        n_jobs=-1
-    )
+    # rf = RandomForestClassifier(
+    #     **best,
+    #     bootstrap=True,
+    #     random_state=42,
+    #     n_jobs=-1
+    # )
 
-    rf.fit(X_train, y_train)
+    # rf.fit(X_train, y_train)
 
-    y_test_pred = rf.predict(X_test)
+    # y_test_pred = rf.predict(X_test)
 
-    print("\n✅ FINAL TEST F1 (macro):", f1_score(y_test, y_test_pred, average="macro"))
+    # print("\n✅ FINAL TEST F1 (macro):", f1_score(y_test, y_test_pred, average="macro"))
