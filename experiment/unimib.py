@@ -76,20 +76,11 @@ class UniMiBExperiment:
         # return device
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"Using device: {device}")
-        
-        if torch.cuda.is_available():
-            print(f"Number of GPUs: {torch.cuda.device_count()}")
-            for i in range(torch.cuda.device_count()):
-                print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
 
         return device
 
     def _create_experiment_name(self):
         name = "UniMiB_data"
-        timestamp = time.gmtime()
-        # experiment_name = "{}_{}.{:0>2d}.{:0>2d}_{:0>2d}-{:0>2d}".format(
-        #     name, *timestamp[:5]
-        # )
         experiment_name = f"{name}_{uuid.uuid4().hex[:8]}"
         print("experiment:", experiment_name)
         return experiment_name
@@ -104,24 +95,6 @@ class UniMiBExperiment:
         )
 
         self.in_features = self.data.X_train.shape[1]
-
-        # Temporarily remove this section to replace with classification setup
-        # Compute normalization stats
-        # self.mu = self.data.y_train.mean()
-        # self.std = self.data.y_train.std()
-
-        # # Normalize targets
-        # normalize = lambda x: ((x - self.mu) / self.std).astype(np.float32)
-
-        # self.data.y_train, self.data.y_valid, self.data.y_test = map(
-        #     normalize,
-        #     [self.data.y_train, self.data.y_valid, self.data.y_test]
-        # )
-
-        # print(
-        #     "mean = %.5f, std = %.5f" % (self.mu, self.std),
-        #     f"in_features = {self.in_features}"
-        # )
 
         # For classification, we need to encode labels and determine the number of classes
         le = LabelEncoder() # Encode string labels to integers if necessary, or just ensure they are in the right format
@@ -224,28 +197,15 @@ class UniMiBExperiment:
             # print("Number of trainer.step:", self.trainer.step)
             metrics = self.trainer.train_on_batch(*batch, device=self.device)
             
-            # FIX: convert tensor to number
             self.loss_history.append(metrics['loss'].item())
-            # if self.trainer.step < report_frequency:
-            #     report_frequency = self.trainer.step
-            # else:
-            #     report_frequency = self.report_frequency
 
             if self.trainer.step % report_frequency == 0:
-                #self.print_gpu_memory(f"Step {self.trainer.step}")
                 self.trainer.save_checkpoint()
                 self.trainer.average_checkpoints(out_tag='avg')
                 self.trainer.load_checkpoint(tag='avg')
 
-                #self.mse = self.trainer.evaluate_mse(self.data.X_valid, self.data.y_valid, device=self.device, batch_size=batch_size_mse)
                 self.f1 = self.evaluate_f1(self.data.X_valid, self.data.y_valid)
-                
-                # if self.mse < self.best_mse:
-                #     self.best_mse = self.mse
-                #     self.best_step_mse = self.trainer.step
-                #     self.trainer.save_checkpoint(tag='best_mse')
-
-                # self.mse_history.append(self.mse)
+            
                 
                 if self.f1 > self.best_f1:
                     self.best_f1 = self.f1
@@ -264,13 +224,7 @@ class UniMiBExperiment:
                 print(f"Loss: {metrics['loss'].item():.5f}")
                 #print(f"Val MSE: {self.mse:.5f}")
                 print(f"Val F1: {self.f1:.5f}")
-
-            # if self.trainer.step > self.best_step_mse + self.early_stopping_rounds:
-            #     print('BREAK. There is no improvement for {} steps'.format(self.early_stopping_rounds))
-            #     print("Best step:", self.best_step_mse)
-            #     print("Best Val MSE: %0.5f" % self.best_mse)
-            #     break
-            
+          
             if self.trainer.step > self.best_step_f1 + self.early_stopping_rounds:
                 print('BREAK. There is no improvement for {} steps'.format(self.early_stopping_rounds))
                 print("Best step:", self.best_step_f1)
@@ -299,13 +253,10 @@ class UniMiBExperiment:
             model_to_load.load_state_dict(torch.load(self.best_model_path, map_location=self.device))
             self.model.eval()
         else:
-            # self.trainer.load_checkpoint(tag='best_mse')
             self.trainer.load_checkpoint(tag='best_f1')
 
-        # self.mse = self.trainer.evaluate_mse(self.data.X_test, self.data.y_test, device=self.device)
         self.f1 = self.evaluate_f1(self.data.X_test, self.data.y_test)
         print('Best step: ', self.trainer.step)
-        # print("Test MSE: %0.5f" % (self.mse))
         print("Test F1: %0.5f" % (self.f1))
 
     def delete_logs(self):
