@@ -36,14 +36,14 @@ def objective(trial):
         }
 
         exp.create_model()
-        print("Train samples:")
-        print(Counter(exp.data.y_train))
+        # print("Train samples:")
+        # print(Counter(exp.data.y_train))
 
-        print("Valid samples:")
-        print(Counter(exp.data.y_valid))
+        # print("Valid samples:")
+        # print(Counter(exp.data.y_valid))
 
-        print("Test samples:")
-        print(Counter(exp.data.y_test))
+        # print("Test samples:")
+        # print(Counter(exp.data.y_test))
 
         print(f"layer_dim: {exp.layer_dim}, num_layers: {exp.num_layers}, depth: {exp.depth}, batch_size: {batch_size}, epochs: {epochs}, lr: {lr}")
         print(f"total_params: {exp.total_params}, total_params_size_with_buffer_KB: {exp.total_params_size_with_buffer_KB}, cpu_activation_memory_KB: {exp.cpu_activation_memory_KB}, cpu_estimate_inference_size_KB: {exp.cpu_estimate_inference_size_KB}")
