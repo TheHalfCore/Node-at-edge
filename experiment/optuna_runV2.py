@@ -16,7 +16,7 @@ filename = "optuna_Test_NODE_withDataAgg_results_V2.csv"
 # =========================
 def objective(trial):
     try:
-        exp = UniMiBExperiment(gpu_id=0, is_cpu=True, delete_logs=False)
+        exp = UniMiBExperiment(gpu_id=0, is_cpu=False, delete_logs=False)
 
         exp.load_and_preprocess_data()
         # hyperparameters
