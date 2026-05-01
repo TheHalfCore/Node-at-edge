@@ -79,10 +79,10 @@ def objective(trial):
             "lr": lr,
             "batch_size": batch_size,
             "epochs": epochs,
-            "cpu_activation_memory_KB": exp.cpu_activation_memory_KB,
-            "cpu_estimate_inference_size_KB": exp.cpu_estimate_inference_size_KB,
             "total_params": exp.total_params,
             "total_params_size_with_buffer_KB": exp.total_params_size_with_buffer_KB,
+            "cpu_activation_memory_KB": exp.cpu_activation_memory_KB,
+            "cpu_estimate_inference_size_KB": exp.cpu_estimate_inference_size_KB,
             "f1_score": f1,
             "test_f1_score": test_f1
         })
