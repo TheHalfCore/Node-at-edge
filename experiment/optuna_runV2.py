@@ -16,23 +16,16 @@ filename = "optuna_Test_NODE_withDataAgg_results_V2.csv"
 # =========================
 def objective(trial):
     try:
-        exp = UniMiBExperiment(gpu_id=0, is_cpu=False, delete_logs=False)
+        exp = UniMiBExperiment(gpu_id=0, is_cpu=True, delete_logs=False)
 
         exp.load_and_preprocess_data()
         # hyperparameters
-        # exp.layer_dim = trial.suggest_int("layer_dim", 1, 48)
-        # exp.num_layers = trial.suggest_int("num_layers", 1, 6)
-        # exp.depth = trial.suggest_int("depth", 1, 6)
-        # batch_size = trial.suggest_categorical("batch_size", [32, 56, 64, 96])
-        # epochs = trial.suggest_int("epochs", 50, 60)
-        # lr = trial.suggest_float("lr", 1e-5, 1e-4, log=True)
-
-        exp.layer_dim = trial.suggest_int("layer_dim", 20, 48)
-        exp.num_layers = trial.suggest_int("num_layers", 2, 6)
-        exp.depth = trial.suggest_int("depth", 3, 5)
+        exp.layer_dim = trial.suggest_int("layer_dim", 1, 48)
+        exp.num_layers = trial.suggest_int("num_layers", 1, 6)
+        exp.depth = trial.suggest_int("depth", 1, 5)
         batch_size = trial.suggest_categorical("batch_size", [256, 512])
-        epochs = trial.suggest_int("epochs", 130, 200)
-        lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+        epochs = trial.suggest_int("epochs", 10, 180)
+        lr = 0.00141#trial.suggest_float("lr", 1e-5, 1e-1, log=True)
 
         exp.epochs = epochs
         

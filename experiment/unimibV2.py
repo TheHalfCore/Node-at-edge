@@ -201,19 +201,19 @@ class UniMiBExperiment:
         self.optimizer_params = { 'nus':(0.7, 1.0), 'betas':(0.95, 0.998), 'lr': 7.657337189649465e-05 }
     
     def create_trainer(self):
-        # weights = compute_class_weight( # Compute class weights to handle class imbalance
-        # class_weight="balanced", # Automatically adjust weights inversely proportional to class frequencies
-        # classes=np.unique(self.data.y_train), # Get unique class labels from training data
-        # y=self.data.y_train # Provide training labels to compute class frequencies and weights
-        # )
-        # class_weights = torch.tensor(weights, dtype=torch.float32).to(self.device) # Convert to tensor and move to device
-        # def weighted_loss(logits, y): # Define weighted cross-entropy loss function
-        #     return F.cross_entropy(logits, y, weight=class_weights) # Use class weights in the loss function
+        weights = compute_class_weight( # Compute class weights to handle class imbalance
+        class_weight="balanced", # Automatically adjust weights inversely proportional to class frequencies
+        classes=np.unique(self.data.y_train), # Get unique class labels from training data
+        y=self.data.y_train # Provide training labels to compute class frequencies and weights
+        )
+        class_weights = torch.tensor(weights, dtype=torch.float32).to(self.device) # Convert to tensor and move to device
+        def weighted_loss(logits, y): # Define weighted cross-entropy loss function
+            return F.cross_entropy(logits, y, weight=class_weights) # Use class weights in the loss function
         
         self.trainer = lib.Trainer(
             model=self.model, 
-            # loss_function=weighted_loss,
-            loss_function=F.cross_entropy,
+            loss_function=weighted_loss,
+            #loss_function=F.cross_entropy,
             experiment_name=self.experiment_name,
             warm_start=False,
             Optimizer=QHAdam,
